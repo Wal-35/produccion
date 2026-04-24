@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ILTEC - Sistema Maestro de Producción</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --primary: #22c55e; /* Verde ILTEC */
+            --text: #c9d1d9;
+            --border: #30363d;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0; padding: 0;
+            line-height: 1.5;
+        }
+
+        header {
+            background: var(--card);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid var(--primary);
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .logo-iltec { height: 60px; filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.4)); }
+
+        .nav-tabs {
+            display: flex;
+            background: #010409;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab-btn {
+            flex: 1; padding: 15px; border: none; background: none;
+            color: #8b949e; font-weight: bold; cursor: pointer;
+            text-transform: uppercase; font-size: 11px; white-space: nowrap;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .container { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
+
+        .section-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+
+        h3 { color: var(--primary); margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; font-size: 16px; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 15px; }
+
+        label { display: block; font-size: 11px; color: #8b949e; margin-bottom: 5px; font-weight: 600; }
+        
+        input, select, textarea {
+            width: 100%; padding: 12px; background: #0d1117; border: 1px solid var(--border);
+            color: white; border-radius: 8px; font-size: 14px; box-sizing: border-box;
+        }
+
+        input:focus { border-color: var(--primary); outline: none; }
+
+        /* Tabla 6x5 Punzonado */
+        .table-scroll { overflow-x: auto; margin-top: 10px; border-radius: 8px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        th, td { padding: 10px; border: 1px solid var(--border); text-align: center; font-size: 12px; }
+        th { background: #21262d; color: var(--primary); }
+
+        .paros-container {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+            background: #010409; padding: 15px; border-radius: 10px; margin-top: 10px;
+        }
+
+        .resumen-tiempo {
+            background: #000; border: 1px dashed var(--primary);
+            padding: 20px; border-radius: 10px; text-align: center; margin-top: 15px;
+        }
+
+        .btn-main {
+            background: var(--primary); color: #000; border: none; padding: 18px;
+            border-radius: 10px; font-weight: 800; width: 100%; cursor: pointer;
+            font-size: 16px; transition: 0.2s;
+        }
+
+        .btn-wa { background: #25d366; color: white; margin-top: 10px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <img src="logoiltec.png" alt="ILTEC" class="logo-iltec">
+        <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">SISTEMA INTEGRAL DE CONTROL DE PRODUCCIÓN</div>
+    </header>
+
+    <nav class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('prog')">1. Programador</button>
+        <button class="tab-btn" onclick="switchTab('alist')">2. Alistador</button>
+        <button class="tab-btn" onclick="switchTab('prod')">3. Producción</button>
+        <button class="tab-btn" onclick="switchTab('cal')">4. Calidad</button>
+    </nav>
+
+    <div class="container">
+
+        <div id="sec-prog" class="section-card">
+            <h3>Planificación de la Orden</h3>
+            <div class="grid">
+                <div><label>Nº ORDEN DE PRODUCCIÓN</label><input type="text" id="p-op"></div>
+                <div><label>ÍTEM / REFERENCIA PIEZA</label><input type="text" id="p-item"></div>
+                <div><label>CANTIDAD PROGRAMADA</label><input type="number" id="p-cant"></div>
+                <div><label>MATERIAL Y CALIBRE BASE</label><input type="text" id="p-mat"></div>
+            </div>
+        </div>
+
+        <div id="sec-alist" class="section-card hidden">
+            <h3>Alistamiento de Materiales</h3>
+            <div class="grid">
+                <div>
+                    <label>ALISTADOR RESPONSABLE</label>
+                    <select id="a-name">
+                        <option value="">Seleccione...</option>
+                        <option value="Alistador 1">Alistador 1</option>
+                        <option value="Alistador 2">Alistador 2</option>
+                    </select>
+                </div>
+                <div><label>UBICACIÓN EN BODEGA</label><input type="text" id="a-loc"></div>
+                <div><label>FECHA DE ALISTAMIENTO</label><input type="date" id="a-fecha"></div>
+            </div>
+        </div>
+
+        <div id="sec-prod" class="section-card hidden">
+            <h3>Ejecución: Punzonado y Doblado</h3>
+            <div class="grid">
+                <div>
+                    <label>OPERARIO TITULAR 1</label>
+                    <select id="op-1"><option value="">Seleccione...</option><option>Operario A</option><option>Operario B</option></select>
+                </div>
+                <div>
+                    <label>OPERARIO TITULAR 2</label>
+                    <select id="op-2"><option value="">Seleccione...</option><option>Operario C</option><option>Operario D</option></select>
+                </div>
+                <div><label>AYUDANTE (REEMPLAZO/OTRO)</label><input type="text" id="op-ayuda" placeholder="Nombre completo"></div>
+            </div>
+
+            <div class="grid">
+                <div><label>HORA INICIO OPERACIÓN</label><input type="time" id="h-ini" onchange="calcTiempo()"></div>
+                <div><label>HORA FINAL OPERACIÓN</label><input type="time" id="h-fin" onchange="calcTiempo()"></div>
+                <div><label>MÁQUINA / PUESTO</label><input type="text" id="m-puesto"></div>
+            </div>
+
+            <label>CÓDIGOS DE PARO (MINUTOS POR INTERVALO)</label>
+            <div class="paros-container">
+                <div><label>MECÁNICO</label><input type="number" class="p-min" value="0" oninput="calcTiempo()"></div>
+                <div><label>ELÉCTRICO</label><input type="number" class="p-min" value="0" oninput="calcTiempo()"></div>
+                <div><label>FALTA MAT.</label><input type="number" class="p-min" value="0" oninput="calcTiempo()"></div>
+                <div><label>ASEO</label><input type="number" class="p-min" value="0" oninput="calcTiempo()"></div>
+                <div><label>LOGÍSTICA</label><input type="number" class="p-min" value="0" oninput="calcTiempo()"></div>
+                <div><label>OTROS</label><input type="number" class="p-min" value="0" oninput="calcTiempo()"></div>
+            </div>
+
+            <div class="resumen-tiempo">
+                <span style="font-size: 12px; color: #8b949e;">TIEMPO NETO TRABAJADO</span><br>
+                <span id="t-neto-display" style="font-size: 28px; font-weight: 900; color: var(--primary);">00:00</span>
+            </div>
+
+            <h3 style="margin-top: 30px;">Material y Calibre (Detalle Punzonado)</h3>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>LÁMINA Ó RETAL</th>
+                            <th>MEDIDAS RETAL</th>
+                            <th>CANT. SOBRANTE</th>
+                            <th>MEDIDAS SOBRANTE</th>
+                            <th># PIEZAS X LÁMINA</th>
+                        </tr>
+                    </thead>
+                    <tbody id="filas-mat">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="sec-cal" class="section-card hidden">
+            <h3>Inspección y Resultados</h3>
+            <div class="grid">
+                <div><label>PROD. CONFORME</label><input type="number" id="q-ok"></div>
+                <div><label>PROD. NO CONFORME</label><input type="number" id="q-bad"></div>
+                <div><label>TIPO DE DEFECTO</label><input type="text" id="q-tipo"></div>
+            </div>
+            <div class="grid">
+                <div><label>CAUSA DEFECTO</label><input type="text" id="q-causa"></div>
+                <div><label>ACCIÓN TOMADA</label><input type="text" id="q-accion"></div>
+                <div>
+                    <label>INSPECCIÓN FINAL</label>
+                    <select id="q-final"><option>CUMPLE ✅</option><option>NO CUMPLE ❌</option></select>
+                </div>
+            </div>
+            <div class="grid">
+                <div><label>MEDIDAS</label><select id="chk-med"><option>Pasa</option><option>Falla</option></select></div>
+                <div><label>MATERIAL</label><select id="chk-mat"><option>Pasa</option><option>Falla</option></select></div>
+                <div><label>CALIBRE</label><select id="chk-cal"><option>Pasa</option><option>Falla</option></select></div>
+            </div>
+
+            <div style="margin-top: 30px;">
+                <button class="btn-main" onclick="guardarFirebase()">💾 GUARDAR EN BASE DE DATOS</button>
+                <button class="btn-main btn-wa" onclick="enviarCSV()">📲 ENVIAR REPORTE A ANALISTA (CSV)</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- CONFIGURACIÓN FIREBASE (REEMPLAZA CON TUS DATOS) ---
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_DOMINIO.firebaseapp.com",
+            projectId: "TU_PROYECTO_ID",
+            storageBucket: "TU_BUCKET.appspot.com",
+            messagingSenderId: "TU_ID",
+            appId: "TU_APP_ID"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Generar las 6 filas de la tabla de materiales
+        const tbody = document.getElementById('filas-mat');
+        for(let i=0; i<6; i++) {
+            tbody.innerHTML += `<tr>
+                <td><input type="text"></td><td><input type="text"></td>
+                <td><input type="number"></td><td><input type="text"></td>
+                <td><input type="number"></td>
+            </tr>`;
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.section-card').forEach(s => s.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('sec-' + tabId).classList.remove('hidden');
+            event.target.classList.add('active');
+        }
+
+        function calcTiempo() {
+            const h1 = document.getElementById('h-ini').value;
+            const h2 = document.getElementById('h-fin').value;
+            if(!h1 || !h2) return;
+
+            let diff = (new Date("1970-01-01 " + h2) - new Date("1970-01-01 " + h1)) / 60000;
+            if(diff < 0) diff += 1440; // Ajuste por cambio de día
+
+            let paros = 0;
+            document.querySelectorAll('.p-min').forEach(p => paros += Number(p.value || 0));
+
+            const neto = diff - paros;
+            const hh = Math.floor(neto / 60);
+            const mm = neto % 60;
+            document.getElementById('t-neto-display').innerText = 
+                `${hh.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')}`;
+        }
+
+        async function guardarFirebase() {
+            try {
+                const data = {
+                    op: document.getElementById('p-op').value,
+                    item: document.getElementById('p-item').value,
+                    operarios: [document.getElementById('op-1').value, document.getElementById('op-2').value],
+                    tiempoNeto: document.getElementById('t-neto-display').innerText,
+                    fecha: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                await db.collection("reportes_iltec").add(data);
+                alert("✅ Reporte guardado con éxito en Firebase.");
+            } catch(e) { alert("Error al guardar: " + e.message); }
+        }
+
+        function enviarCSV() {
+            const op = document.getElementById('p-op').value;
+            const item = document.getElementById('p-item').value;
+            const neto = document.getElementById('t-neto-display').innerText;
+            const ok = document.getElementById('q-ok').value;
+            
+            const csv = `OP;ITEM;TIEMPO_NETO;PIEZAS_OK\n${op};${item};${neto};${ok}`;
+            const msg = encodeURIComponent(`*REPORTE PRODUCCIÓN ILTEC*\n\n${csv}`);
+            window.open(`https://wa.me/573000000000?text=${msg}`);
+        }
+    </script>
+</body>
+</html>
