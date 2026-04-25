@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ILTEC - Sistema Flujo Walner</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+    <style>
+        :root {
+            --bg: #161b22;
+            --card: #0d1117;
+            --iltec-green: #22c55e;
+            --iltec-blue: #3b82f6;
+            --text: #c9d1d9;
+            --border: #30363d;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; }
+
+        /* Login con estilo industrial */
+        #login-screen {
+            position: fixed; inset: 0; background: var(--bg); z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .login-card {
+            background: var(--card); padding: 40px; border-radius: 15px;
+            border: 1px solid var(--border); width: 90%; max-width: 400px; text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* Ojito de Contraseña */
+        .password-container { position: relative; width: 100%; margin-top: 5px; }
+        .password-container input { padding-right: 45px; margin-top: 0; }
+        .toggle-eye {
+            position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+            cursor: pointer; color: #8b949e; font-size: 20px; user-select: none;
+        }
+
+        .logo { height: 70px; margin-bottom: 20px; }
+        
+        /* Navegación (Ahora son 5 pasos) */
+        .nav-roles { display: flex; background: #010409; overflow-x: auto; border-bottom: 2px solid var(--iltec-green); }
+        .role-btn { 
+            flex: 1; padding: 15px 10px; border: none; background: none; color: #8b949e; 
+            cursor: not-allowed; /* Desactivado por defecto para forzar el flujo */
+            font-weight: bold; text-transform: uppercase; font-size: 11px; min-width: 100px;
+        }
+        .role-btn.active { color: var(--iltec-green); border-bottom: 4px solid var(--iltec-green); background: rgba(34,197,94,0.1); cursor: pointer; }
+
+        .container { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
+        .section { background: var(--card); border-radius: 12px; padding: 25px; border: 1px solid var(--border); margin-bottom: 20px; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
+        input, select { width: 100%; padding: 15px; background: #0d1117; border: 1px solid var(--border); color: white; border-radius: 8px; font-size: 16px; box-sizing: border-box; margin-top: 5px; }
+        input[type="file"] { padding: 10px; background: #21262d; }
+        
+        .btn-main { background: var(--iltec-green); color: #000; border: none; padding: 20px; border-radius: 10px; font-weight: 900; width: 100%; cursor: pointer; font-size: 18px; margin-top: 20px; }
+        .btn-blue { background: var(--iltec-blue); color: white; }
+        
+        .table-wrap { overflow-x: auto; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        th, td { border: 1px solid var(--border); padding: 5px; text-align: center; }
+        th { background: #21262d; color: var(--iltec-green); font-size: 11px; }
+
+        /* Estilos para el Plano y Banner de OP */
+        .plano-preview { width: 100%; max-height: 300px; object-fit: contain; border: 2px dashed var(--border); margin-top: 15px; display: none; background: #000; border-radius: 8px; }
+        .op-banner { background: #010409; border-left: 4px solid var(--iltec-blue); padding: 10px 15px; margin-bottom: 20px; border-radius: 0 8px 8px 0; }
+        .op-banner span { color: var(--iltec-blue); font-weight: bold; margin-right: 15px; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-card">
+            <img src="https://wal-35.github.io/reporte/logoiltec.png" alt="ILTEC" class="logo">
+            <h2 style="color: var(--iltec-green); margin-bottom: 30px;">ACCESO AL SISTEMA</h2>
+            <input type="email" id="auth-email" placeholder="walner718@gmail.com">
+            <div class="password-container">
+                <input type="password" id="auth-pass" placeholder="Tu Contraseña">
+                <span class="toggle-eye" onclick="togglePasswordVisibility()">👁️</span>
+            </div>
+            <button class="btn-main" id="btn-login" onclick="handleAuth()">ENTRAR</button>
+        </div>
+    </div>
+
+    <div id="app-main" class="hidden">
+        <header style="text-align: center; padding: 15px; background: var(--card);">
+            <img src="https://wal-35.github.io/reporte/logoiltec.png" alt="ILTEC" style="height: 40px;">
+        </header>
+
+        <nav class="nav-roles">
+            <button class="role-btn active" id="nav-prog">1. PROG</button>
+            <button class="role-btn" id="nav-alist">2. ALIST</button>
+            <button class="role-btn" id="nav-punz">3. PUNZONADO</button>
+            <button class="role-btn" id="nav-dob">4. DOBLADO</button>
+            <button class="role-btn" id="nav-cal">5. CALIDAD</button>
+        </nav>
+
+        <div class="container">
+            <div id="sec-prog" class="section">
+                <h3 style="color: var(--iltec-blue);">1. Programación de OP</h3>
+                <div class="grid">
+                    <div><label>Nº ORDEN (OP)</label><input type="text" id="p-op"></div>
+                    <div><label>REFERENCIA ÍTEM</label><input type="text" id="p-item"></div>
+                    <div><label>CANTIDAD</label><input type="number" id="p-cant"></div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <label>📝 SUBIR PLANO (FOTO O PDF)</label>
+                    <input type="file" id="p-plano" accept="image/*" onchange="cargarPlano(event)">
+                </div>
+                <button class="btn-main btn-blue" onclick="avanzarA('alist')">ENVIAR A ALISTADOR ➔</button>
+            </div>
+
+            <div id="sec-alist" class="section hidden">
+                <h3>2. Alistamiento</h3>
+                <div class="op-banner">
+                    <span>OP: <b class="lbl-op">-</b></span> | 
+                    <span>ÍTEM: <b class="lbl-item">-</b></span> | 
+                    <span>CANT: <b class="lbl-cant">-</b></span>
+                </div>
+                <label>PLANO ADJUNTO:</label>
+                <img class="plano-preview">
+
+                <div class="grid" style="margin-top: 20px;">
+                    <div><label>NOMBRE ALISTADOR</label><input type="text" id="a-name"></div>
+                    <div><label>UBICACIÓN</label><input type="text" id="a-loc"></div>
+                </div>
+                <button class="btn-main btn-blue" onclick="avanzarA('punz')">ENVIAR A PUNZONADO ➔</button>
+            </div>
+
+            <div id="sec-punz" class="section hidden">
+                <h3>3. Máquina Punzonadora</h3>
+                <div class="op-banner"><span>OP: <b class="lbl-op">-</b></span></div>
+                <label>PLANO ADJUNTO:</label>
+                <img class="plano-preview">
+
+                <div class="grid" style="margin-top: 20px;">
+                    <div><label>HORA INICIO</label><input type="time" id="h-ini-p" onchange="calcTiempo('p')"></div>
+                    <div><label>HORA FINAL</label><input type="time" id="h-fin-p" onchange="calcTiempo('p')"></div>
+                </div>
+                
+                <div class="grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 10px;">
+                    <input type="number" class="paro-p" placeholder="P1 min" oninput="calcTiempo('p')">
+                    <input type="number" class="paro-p" placeholder="P2 min" oninput="calcTiempo('p')">
+                    <input type="number" class="paro-p" placeholder="P3 min" oninput="calcTiempo('p')">
+                </div>
+                
+                <div style="border: 2px dashed var(--iltec-green); padding: 10px; text-align: center; margin-top:15px">
+                    <small>TIEMPO NETO PUNZONADO</small><br><b id="res-neto-p" style="font-size: 24px; color: var(--iltec-green);">00:00</b>
+                </div>
+
+                <h4 style="color:#8b949e; margin-bottom: 5px;">Módulo 6x5</h4>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>LÁMINA/RETAL</th><th>MEDIDAS</th><th>SOBRANTE</th><th>MED. SOBRANTE</th><th>PIEZAS</th></tr></thead>
+                        <tbody id="tbody-6x5"></tbody>
+                    </table>
+                </div>
+                <button class="btn-main btn-blue" onclick="avanzarA('dob')">ENVIAR A DOBLADO ➔</button>
+            </div>
+
+            <div id="sec-dob" class="section hidden">
+                <h3>4. Máquina Dobladora</h3>
+                <div class="op-banner"><span>OP: <b class="lbl-op">-</b></span></div>
+                
+                <div class="grid">
+                    <div><label>HORA INICIO</label><input type="time" id="h-ini-d" onchange="calcTiempo('d')"></div>
+                    <div><label>HORA FINAL</label><input type="time" id="h-fin-d" onchange="calcTiempo('d')"></div>
+                </div>
+
+                <div class="grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 10px;">
+                    <input type="number" class="paro-d" placeholder="P1 min" oninput="calcTiempo('d')">
+                    <input type="number" class="paro-d" placeholder="P2 min" oninput="calcTiempo('d')">
+                    <input type="number" class="paro-d" placeholder="P3 min" oninput="calcTiempo('d')">
+                </div>
+                
+                <div style="border: 2px dashed var(--iltec-green); padding: 10px; text-align: center; margin-top:15px">
+                    <small>TIEMPO NETO DOBLADO</small><br><b id="res-neto-d" style="font-size: 24px; color: var(--iltec-green);">00:00</b>
+                </div>
+                <button class="btn-main btn-blue" onclick="avanzarA('cal')">ENVIAR A CALIDAD ➔</button>
+            </div>
+
+            <div id="sec-cal" class="section hidden">
+                <h3>5. Calidad y Cierre</h3>
+                <div class="op-banner"><span>OP FINAL: <b class="lbl-op">-</b></span></div>
+                
+                <div class="grid">
+                    <div><label>PIEZAS CONFORMES</label><input type="number" id="q-ok"></div>
+                    <div><label>PIEZAS NO CONFORMES</label><input type="number" id="q-bad"></div>
+                </div>
+                <button class="btn-main" onclick="saveFirebase()">💾 GUARDAR TODO EN LA NUBE</button>
+                <button class="btn-main" style="background: #25d366; color: white;" onclick="enviarAnalista()">📲 ENVIAR REPORTE A ANALISTA</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // *** CREDENCIALES FIREBASE ***
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_PROYECTO.firebaseapp.com",
+            projectId: "TU_PROYECTO",
+            storageBucket: "TU_PROYECTO.appspot.com",
+            messagingSenderId: "TU_ID",
+            appId: "TU_ID"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // Variables Globales del Flujo
+        let datosGlobales = { planoSrc: '' };
+
+        // 1. Ojito de contraseña
+        function togglePasswordVisibility() {
+            const passInput = document.getElementById('auth-pass');
+            const eyeIcon = document.querySelector('.toggle-eye');
+            if (passInput.type === 'password') { passInput.type = 'text'; eyeIcon.innerText = '🔒'; } 
+            else { passInput.type = 'password'; eyeIcon.innerText = '👁️'; }
+        }
+
+        // 2. Generar Tabla 6x5 para Punzonado
+        const bodyTable = document.getElementById('tbody-6x5');
+        for(let i=0; i<6; i++) {
+            bodyTable.innerHTML += `<tr><td><input type="text"></td><td><input type="text"></td><td><input type="number"></td><td><input type="text"></td><td><input type="number"></td></tr>`;
+        }
+
+        // 3. Autenticación
+        function handleAuth() {
+            const email = document.getElementById('auth-email').value;
+            const pass = document.getElementById('auth-pass').value;
+            if(!email || !pass) { alert("Walner, ingresa correo y contraseña."); return; }
+            document.getElementById('btn-login').innerText = "CARGANDO...";
+            auth.signInWithEmailAndPassword(email, pass)
+                .then(() => {
+                    document.getElementById('login-screen').classList.add('hidden');
+                    document.getElementById('app-main').classList.remove('hidden');
+                }).catch((e) => {
+                    document.getElementById('btn-login').innerText = "ENTRAR";
+                    alert("Error: " + e.message);
+                });
+        }
+
+        // 4. Lógica para Leer el Plano (Imagen)
+        function cargarPlano(event) {
+            const file = event.target.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    datosGlobales.planoSrc = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // 5. MOTOR DEL FLUJO (Pasa de una sección a otra)
+        function avanzarA(seccionDestino) {
+            // Validar que en el paso 1 haya OP
+            if(seccionDestino === 'alist') {
+                const op = document.getElementById('p-op').value;
+                if(!op) { alert("¡Detente! Debes ingresar un número de OP."); return; }
+                
+                // Actualizar Banners en las siguientes pantallas
+                document.querySelectorAll('.lbl-op').forEach(e => e.innerText = op);
+                document.querySelectorAll('.lbl-item').forEach(e => e.innerText = document.getElementById('p-item').value);
+                document.querySelectorAll('.lbl-cant').forEach(e => e.innerText = document.getElementById('p-cant').value);
+                
+                // Cargar Imagen en los visores
+                if(datosGlobales.planoSrc) {
+                    document.querySelectorAll('.plano-preview').forEach(img => {
+                        img.src = datosGlobales.planoSrc;
+                        img.style.display = 'block';
+                    });
+                }
+            }
+
+            // Cambiar Visibilidad de Secciones
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('sec-' + seccionDestino).classList.remove('hidden');
+            
+            // Cambiar Color del Navegador
+            document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('nav-' + seccionDestino).classList.add('active');
+            
+            // Scroll arriba
+            window.scrollTo(0,0);
+        }
+
+        // 6. Cálculo de Tiempo Independiente (p=Punzonado, d=Doblado)
+        function calcTiempo(fase) {
+            const h1 = document.getElementById(`h-ini-${fase}`).value;
+            const h2 = document.getElementById(`h-fin-${fase}`).value;
+            if(!h1 || !h2) return;
+
+            let diff = (new Date("1970-01-01 " + h2) - new Date("1970-01-01 " + h1)) / 60000;
+            if(diff < 0) diff += 1440; // Por si pasa de medianoche
+
+            let paros = 0;
+            document.querySelectorAll(`.paro-${fase}`).forEach(i => paros += Number(i.value || 0));
+            
+            let neto = Math.max(0, diff - paros);
+            const hh = Math.floor(neto/60);
+            const mm = neto % 60;
+            document.getElementById(`res-neto-${fase}`).innerText = `${hh.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')}`;
+        }
+
+        // 7. Guardado Maestro Final
+        function saveFirebase() {
+            db.collection("produccion_iltec").add({
+                op: document.getElementById('p-op').value,
+                item: document.getElementById('p-item').value,
+                cant: document.getElementById('p-cant').value,
+                alistador: document.getElementById('a-name').value,
+                tiempo_punz: document.getElementById('res-neto-p').innerText,
+                tiempo_dob: document.getElementById('res-neto-d').innerText,
+                conforme: document.getElementById('q-ok').value,
+                noconforme: document.getElementById('q-bad').value,
+                fecha: new Date().toLocaleString()
+            }).then(() => alert("✅ OP CERRADA Y GUARDADA EN LA NUBE")).catch(e => alert("Error: " + e));
+        }
+
+        // 8. Mensaje Whatsapp a la Analista
+        function enviarAnalista() {
+            const op = document.getElementById('p-op').value;
+            const tp = document.getElementById('res-neto-p').innerText;
+            const td = document.getElementById('res-neto-d').innerText;
+            const ok = document.getElementById('q-ok').value;
+            
+            const txt = `*REPORTE FINAL ILTEC*\nOP: ${op}\n---\nTiempo Punzonado: ${tp}\nTiempo Doblado: ${td}\nPiezas OK: ${ok}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`);
+        }
+    </script>
+</body>
+</html>
