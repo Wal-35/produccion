@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ILTEC - Sistema Integral</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --iltec-green: #22c55e;
+            --text: #c9d1d9;
+            --border: #30363d;
+            --btn-height: 60px;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; }
+
+        /* Pantalla de Inicio de Sesión */
+        #login-screen {
+            position: fixed; inset: 0; background: var(--bg); z-index: 999;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .login-card {
+            background: var(--card); padding: 40px; border-radius: 15px;
+            border: 1px solid var(--border); width: 90%; max-width: 400px; text-align: center;
+        }
+
+        /* Interfaz Principal */
+        header { background: var(--card); padding: 15px; text-align: center; border-bottom: 3px solid var(--iltec-green); }
+        .logo { height: 55px; }
+
+        .nav-roles { display: flex; background: #010409; overflow-x: auto; top: 0; z-index: 100; }
+        .role-btn { 
+            flex: 1; padding: 20px; border: none; background: none; color: #8b949e; 
+            cursor: pointer; font-weight: bold; font-size: 12px; text-transform: uppercase; min-width: 130px;
+        }
+        .role-btn.active { color: var(--iltec-green); border-bottom: 4px solid var(--iltec-green); background: rgba(34,197,94,0.05); }
+
+        .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; }
+        .section { background: var(--card); border-radius: 12px; padding: 25px; border: 1px solid var(--border); margin-bottom: 25px; }
+        
+        h3 { color: var(--iltec-green); border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 0; text-transform: uppercase; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        
+        label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #8b949e; }
+        input, select, textarea { 
+            width: 100%; padding: 15px; background: #0d1117; border: 1px solid var(--border); 
+            color: white; border-radius: 8px; font-size: 16px; box-sizing: border-box;
+        }
+
+        /* Tabla 6x5 Técnica */
+        .table-wrap { overflow-x: auto; margin: 15px 0; border-radius: 8px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        th, td { padding: 10px; border: 1px solid var(--border); text-align: center; }
+        th { background: #21262d; font-size: 11px; color: var(--iltec-green); }
+
+        /* Sección de Paros */
+        .paros-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #010409; padding: 15px; border-radius: 10px; }
+        
+        .tiempo-final-box { 
+            background: #000; border: 2px dashed var(--iltec-green); padding: 20px; 
+            text-align: center; border-radius: 10px; margin: 20px 0; 
+        }
+
+        .btn-large { 
+            background: var(--iltec-green); color: #000; border: none; height: var(--btn-height);
+            border-radius: 10px; font-weight: 900; width: 100%; cursor: pointer; font-size: 18px; 
+            margin-top: 15px; transition: 0.2s;
+        }
+        .btn-wa { background: #25d366; color: white; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-card">
+            <img src="https://wal-35.github.io/produccion/logoiltec.png" alt="ILTEC" style="height: 60px; margin-bottom: 20px;">
+            <h2 style="color: var(--iltec-green)">ACCESO PROGRAMADOR</h2>
+            <input type="email" id="auth-email" placeholder="Correo del Programador" style="margin-bottom: 10px;">
+            <input type="password" id="auth-pass" placeholder="Contraseña">
+            <button class="btn-large" onclick="handleAuth()">ENTRAR AL SISTEMA</button>
+        </div>
+    </div>
+
+    <div id="app-main" class="hidden">
+        <header>
+            <img src="https://wal-35.github.io/produccion/logoiltec.png" alt="ILTEC" class="logo">
+            <div style="font-size: 11px; color: var(--iltec-green); letter-spacing: 2px;">GESTIÓN DE PRODUCCIÓN INTEGRAL</div>
+        </header>
+
+        <nav class="nav-roles">
+            <button class="role-btn active" onclick="switchRole('prog', event)">1. Programador</button>
+            <button class="role-btn" onclick="switchRole('alist', event)">2. Alistador</button>
+            <button class="role-btn" onclick="switchRole('prod', event)">3. Producción</button>
+            <button class="role-btn" onclick="switchRole('cal', event)">4. Calidad</button>
+        </nav>
+
+        <div class="container">
+            
+            <div id="sec-prog" class="section">
+                <h3>Planificación Inicial</h3>
+                <div class="grid">
+                    <div><label>ORDEN DE PRODUCCIÓN (OP)</label><input type="text" id="p-op"></div>
+                    <div><label>ÍTEM / REFERENCIA</label><input type="text" id="p-item"></div>
+                    <div><label>CANTIDAD PROGRAMADA</label><input type="number" id="p-cant"></div>
+                </div>
+            </div>
+
+            <div id="sec-alist" class="section hidden">
+                <h3>Preparación de Material</h3>
+                <div class="grid">
+                    <div><label>NOMBRE DEL ALISTADOR</label><input type="text" id="a-name"></div>
+                    <div><label>UBICACIÓN EN BODEGA</label><input type="text" id="a-loc"></div>
+                    <div><label>MATERIAL ASIGNADO</label><input type="text" id="a-mat"></div>
+                </div>
+            </div>
+
+            <div id="sec-prod" class="section hidden">
+                <h3>Ejecución de Máquina</h3>
+                <div class="grid">
+                    <div><label>OPERARIO 1</label><select id="o1"><option>Operario A</option><option>Operario B</option></select></div>
+                    <div><label>OPERARIO 2</label><select id="o2"><option>Operario C</option><option>Operario D</option></select></div>
+                    <div><label>REEMPLAZO / AYUDANTE</label><input type="text" id="o-extra"></div>
+                </div>
+
+                <div class="grid">
+                    <div><label>HORA INICIO</label><input type="datetime-local" id="h-start" onchange="runCalculos()"></div>
+                    <div><label>HORA FINAL</label><input type="datetime-local" id="h-end" onchange="runCalculos()"></div>
+                    <div><label>MÁQUINA</label><input type="text" id="m-ref"></div>
+                </div>
+
+                <label>PAROS POR CÓDIGO (MINUTOS)</label>
+                <div class="paros-grid">
+                    <div><label>C1: MECÁNICO</label><input type="number" class="p-input" value="0" oninput="runCalculos()"></div>
+                    <div><label>C2: ELÉCTRICO</label><input type="number" class="p-input" value="0" oninput="runCalculos()"></div>
+                    <div><label>C3: LOGÍSTICA</label><input type="number" class="p-input" value="0" oninput="runCalculos()"></div>
+                    <div><label>C4: ASEO</label><input type="number" class="p-input" value="0" oninput="runCalculos()"></div>
+                    <div><label>C5: HERRAM.</label><input type="number" class="p-input" value="0" oninput="runCalculos()"></div>
+                    <div><label>C6: OTROS</label><input type="number" class="p-input" value="0" oninput="runCalculos()"></div>
+                </div>
+
+                <div class="tiempo-final-box">
+                    <small style="color: #8b949e">TIEMPO NETO DE TRABAJO</small><br>
+                    <b id="res-neto" style="font-size: 32px; color: var(--iltec-green)">00:00 HR</b>
+                </div>
+
+                <h3>Material y Calibre (6x5)</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>LÁMINA Ó RETAL</th>
+                                <th>MEDIDAS RETAL</th>
+                                <th>CANT. SOBRANTE</th>
+                                <th>MEDIDAS SOBRANTE</th>
+                                <th># PIEZAS X LÁMINA</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-6x5"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="sec-cal" class="section hidden">
+                <h3>Inspección Final</h3>
+                <div class="grid">
+                    <div><label>CONFORME</label><input type="number" id="q-ok"></div>
+                    <div><label>NO CONFORME</label><input type="number" id="q-bad"></div>
+                    <div><label>ESTADO FINAL</label><select id="q-status"><option>CUMPLE ✅</option><option>NO CUMPLE ❌</option></select></div>
+                </div>
+                
+                <button class="btn-large" onclick="saveToFirebase()">💾 GUARDAR REPORTE EN LA NUBE</button>
+                <button class="btn-large btn-wa" onclick="sendToAnalista()">📲 ENVIAR CSV A ANALISTA</button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyBTRtTavk761FDYVetTe2GOqaufhfFPGH8",
+            authDomain: "reportes-883a6.firebaseapp.com",
+            projectId: "reportes-883a6",
+            storageBucket: "reportes-883a6.firebasestorage.app",
+            messagingSenderId: "208331993962",
+            appId: "1:208331993962:web:f61c5bb877d492ebfe2b13"
+        };
+
+        firebase.initializeApp(fbConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // Construir tabla 6x5
+        const bodyTable = document.getElementById('tbody-6x5');
+        for(let i=0; i<6; i++) {
+            bodyTable.innerHTML += `<tr>
+                <td><input type="text"></td><td><input type="text"></td>
+                <td><input type="number"></td><td><input type="text"></td>
+                <td><input type="number"></td>
+            </tr>`;
+        }
+
+        // --- LÓGICA DE ROLES Y AUTH ---
+        function handleAuth() {
+            const email = document.getElementById('auth-email').value;
+            const pass = document.getElementById('auth-pass').value;
+            auth.signInWithEmailAndPassword(email, pass)
+                .then(() => {
+                    document.getElementById('login-screen').classList.add('hidden');
+                    document.getElementById('app-main').classList.remove('hidden');
+                }).catch(e => alert("Acceso Denegado: " + e.message));
+        }
+
+        function switchRole(id, e) {
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+            document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('sec-' + id).classList.remove('hidden');
+            e.target.classList.add('active');
+        }
+
+        // --- CÁLCULO DE TIEMPOS (RESTA DE PAROS) ---
+        function runCalculos() {
+            const start = new Date(document.getElementById('h-start').value);
+            const end = new Date(document.getElementById('h-end').value);
+            if(isNaN(start) || isNaN(end)) return;
+
+            let diffMin = (end - start) / 60000;
+            let totalParos = 0;
+            document.querySelectorAll('.p-input').forEach(i => totalParos += Number(i.value || 0));
+
+            let neto = diffMin - totalParos;
+            if(neto < 0) neto = 0;
+
+            const hh = Math.floor(neto / 60);
+            const mm = Math.floor(neto % 60);
+            document.getElementById('res-neto').innerText = `${hh.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')} HR`;
+        }
+
+        // --- FIREBASE Y CSV ---
+        async function saveToFirebase() {
+            const op = document.getElementById('p-op').value;
+            if(!op) return alert("Falta Nº de Orden");
+            
+            try {
+                await db.collection("reportes_walner").add({
+                    op: op,
+                    item: document.getElementById('p-item').value,
+                    tiempoNeto: document.getElementById('res-neto').innerText,
+                    fecha: new Date().toISOString()
+                });
+                alert("✅ Reporte guardado en Firebase.");
+            } catch(e) { alert("Error: " + e.message); }
+        }
+
+        function sendToAnalista() {
+            const op = document.getElementById('p-op').value;
+            const neto = document.getElementById('res-neto').innerText;
+            const ok = document.getElementById('q-ok').value;
+            
+            // Formato CSV para Excel
+            const csv = `OP;TIEMPO_NETO;CONFORME\n${op};${neto};${ok}`;
+            const msg = encodeURIComponent(`*REPORTE ILTEC - CSV*\n${csv}`);
+            window.open(`https://wa.me/3182150158?text=${msg}`);
+        }
+    </script>
+</body>
+</html>
